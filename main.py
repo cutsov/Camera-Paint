@@ -9,6 +9,7 @@ from brushes import BrushConfig
 from canvas import CanvasState
 from color_sliders import SliderState, build_slider_layout, draw_sliders, get_selected_color, update_drag
 from mode_selector import detect_mode
+from tool_buttons import ToolButton
 
 
 def ensure_model_download(model_path: Path) -> None:
@@ -48,6 +49,7 @@ def main() -> None:
 	clock = pygame.time.Clock()
 	font = pygame.font.SysFont(None, 32)
 	brush_config = BrushConfig()
+	tool_button = None
 	slider_state = SliderState()
 	canvas_state = CanvasState()
 
@@ -89,6 +91,17 @@ def main() -> None:
 				overlay_hi = pygame.Surface((w * aa_scale, h * aa_scale), pygame.SRCALPHA)
 				pygame.display.set_caption(window_name)
 
+			slider_layout = build_slider_layout(w, h)
+			if tool_button is None:
+				button_width = 120
+				button_height = 60
+				tool_button = ToolButton(
+					slider_layout.preview_rect.left,
+					16,
+					button_width,
+					button_height,
+				)
+
 			draw_canvas = canvas_state.ensure_size(w, h)
 			slider_layout = build_slider_layout(w, h)
 			canvas_state.clear_controls_zone(slider_layout.controls_rect)
@@ -98,26 +111,31 @@ def main() -> None:
 			overlay_hi.fill((0, 0, 0, 0))
 			mode = "idle"
 			drag_points = []
+			touch_points = []
 
 			selected_color = get_selected_color(slider_state)
+			active_tool = "brush"
+			if tool_button is not None:
+				active_tool = tool_button.label.lower().replace(".", "").strip()
 
 			brush_radius = brush_config.draw_radius
 			erase_radius = brush_config.erase_radius
 			drawing_points = []
 			erasing_points = []
-			dragging_detected = False
+			touching_detected = False
 			drawing_detected = False
 			erasing_detected = False
 			for hand_landmarks in (result.hand_landmarks or []):
 				detected_mode = detect_mode(hand_landmarks, brush_config.pinch_threshold)
-				if detected_mode == "dragging":
+				if detected_mode == "touching":
 					thumb_tip = hand_landmarks[4]
 					index_tip = hand_landmarks[8]
 					pinch_x = int(((thumb_tip.x + index_tip.x) * 0.5) * w)
 					pinch_y = int(((thumb_tip.y + index_tip.y) * 0.5) * h)
+					touch_points.append((pinch_x, pinch_y))
 					if slider_layout.controls_rect.collidepoint(pinch_x, pinch_y):
 						drag_points.append((pinch_x, pinch_y))
-						dragging_detected = True
+						touching_detected = True
 				elif detected_mode == "drawing":
 					index_tip = hand_landmarks[8]
 					point_x = int(index_tip.x * w)
@@ -134,16 +152,24 @@ def main() -> None:
 						erasing_points.append((point_x, point_y))
 						erasing_detected = True
 
-			# Priority: dragging > erasing > drawing > idle
-			if dragging_detected:
-				mode = "dragging"
+			# Priority: touching > erasing > drawing > idle
+			if touching_detected:
+				mode = "touching"
 			elif erasing_detected:
 				mode = "erasing"
 			elif drawing_detected:
 				mode = "drawing"
 
-			canvas_state.apply_strokes(
+			canvas_state.update_active_shape(
+				active_tool=active_tool,
 				drawing_points=drawing_points,
+				is_drawing_mode=(mode == "drawing"),
+				draw_color=selected_color,
+			)
+
+			active_brush_points = drawing_points if active_tool == "brush" else []
+			canvas_state.apply_strokes(
+				drawing_points=active_brush_points,
 				erasing_points=erasing_points,
 				draw_color=selected_color,
 				draw_radius=brush_radius,
@@ -154,10 +180,11 @@ def main() -> None:
 				state=slider_state,
 				layout=slider_layout,
 				drag_points=drag_points,
-				is_dragging_mode=(mode == "dragging"),
+				is_touching_mode=(mode == "touching"),
 			)
 
 			screen.blit(draw_canvas, (0, 0))
+			canvas_state.draw_active_shape_preview(screen)
 			draw_sliders(
 				screen=screen,
 				state=slider_state,
@@ -165,7 +192,11 @@ def main() -> None:
 				selected_color=selected_color,
 			)
 
-			if mode == "dragging":
+			if tool_button is not None:
+				tool_button.handle_touch(touch_points, is_touching_mode=(mode == "touching"))
+				tool_button.draw(screen, font)
+
+			if mode == "touching":
 				for point_x, point_y in drag_points:
 					pygame.draw.circle(screen, (255, 220, 90), (point_x, point_y), 6)
 			if mode == "drawing" and drawing_points:
@@ -178,7 +209,7 @@ def main() -> None:
 			smoothed_overlay = pygame.transform.smoothscale(overlay_hi, (w, h))
 			screen.blit(smoothed_overlay, (0, 0))
 
-			status_text = f"mode: {mode}"
+			status_text = f"mode: {mode} | tool: {active_tool}"
 			text_surface = font.render(status_text, True, (255, 255, 255))
 			text_x = 12
 			text_y = 12

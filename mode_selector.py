@@ -7,7 +7,7 @@ def is_finger_up(hand_landmarks, tip_idx: int, pip_idx: int) -> bool:
 
 
 def detect_mode(hand_landmarks, pinch_threshold: float) -> str:
-	"""Detects drawing/erasing/dragging mode for one hand."""
+	"""Detects drawing/erasing/touching mode for one hand."""
 	thumb_tip = hand_landmarks[4]
 	index_tip = hand_landmarks[8]
 	index_up = is_finger_up(hand_landmarks, 8, 6)
@@ -17,7 +17,7 @@ def detect_mode(hand_landmarks, pinch_threshold: float) -> str:
 
 	pinch_distance = math.hypot(thumb_tip.x - index_tip.x, thumb_tip.y - index_tip.y)
 	if pinch_distance < pinch_threshold:
-		return "dragging"
+		return "touching"
 	# Open palm should reliably pause tools even when thumb orientation is ambiguous.
 	if index_up and middle_up and ring_up and pinky_up:
 		return "idle"

@@ -92,7 +92,7 @@ def update_drag(
 	state: SliderState,
 	layout: SliderLayout,
 	drag_points: list[tuple[int, int]],
-	is_dragging_mode: bool,
+	is_touching_mode: bool,
 ) -> None:
 	color_handle_width, color_handle_height, color_handle_x, color_handle_y = _get_handle_geometry(layout.color_lever_rect, state.lever_value)
 	sat_handle_width, sat_handle_height, sat_handle_x, sat_handle_y = _get_handle_geometry(layout.saturation_lever_rect, state.saturation_value)
@@ -100,7 +100,7 @@ def update_drag(
 
 	grab_radius = (max(color_handle_width, color_handle_height, sat_handle_width, sat_handle_height, bri_handle_width, bri_handle_height) // 2) + 16
 
-	if is_dragging_mode and drag_points:
+	if is_touching_mode and drag_points:
 		if not state.lever_grabbed and not state.saturation_grabbed and not state.brightness_grabbed:
 			for point_x, point_y in drag_points:
 				if math.hypot(point_x - color_handle_x, point_y - color_handle_y) <= grab_radius:
