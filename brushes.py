@@ -7,7 +7,7 @@ import pygame
 class BrushConfig:
 	pinch_threshold: float = 0.05
 	draw_radius: int = 10
-	erase_radius: int = 25
+	erase_radius: int = 60
 
 
 def get_color_from_position(position: float) -> tuple[int, int, int]:

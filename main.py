@@ -269,7 +269,7 @@ def main() -> None:
 					pygame.draw.circle(screen, (255, 255, 255), (point_x, point_y), brush_radius + 5, 2)
 			if mode == "erasing" and erasing_points_screen:
 				for point_x, point_y in erasing_points_screen:
-					pygame.draw.circle(screen, (255, 60, 60), (point_x, point_y), erase_radius + 5, 2)
+					pygame.draw.circle(screen, (255, 60, 60), (point_x, point_y), erase_radius // 2, 2)
 
 			smoothed_overlay = pygame.transform.smoothscale(overlay_hi, (w, h))
 			screen.blit(smoothed_overlay, (0, 0))
