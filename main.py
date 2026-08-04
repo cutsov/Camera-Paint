@@ -35,6 +35,20 @@ def smooth_brush_points(
 	return smoothed_points, current_point
 
 
+def scale_point_to_canvas(
+	point: tuple[int, int],
+	source_size: tuple[int, int],
+	target_size: tuple[int, int],
+) -> tuple[int, int]:
+	x, y = point
+	source_w, source_h = source_size
+	target_w, target_h = target_size
+	return (
+		int(x * target_w / source_w),
+		int(y * target_h / source_h),
+	)
+
+
 def ensure_model_download(model_path: Path) -> None:
 	if model_path.exists():
 		return
@@ -71,6 +85,7 @@ def main() -> None:
 	overlay_hi = None
 	clock = pygame.time.Clock()
 	font = pygame.font.SysFont(None, 32)
+	canvas_scale = 2.0
 	brush_config = BrushConfig()
 	tool_button = None
 	slider_state = SliderState()
@@ -115,6 +130,8 @@ def main() -> None:
 				overlay_hi = pygame.Surface((w * aa_scale, h * aa_scale), pygame.SRCALPHA)
 				pygame.display.set_caption(window_name)
 
+			canvas_width = max(1, int(round(w * canvas_scale)))
+			canvas_height = max(1, int(round(h * canvas_scale)))
 			slider_layout = build_slider_layout(w, h)
 			if tool_button is None:
 				button_width = 120
@@ -126,9 +143,15 @@ def main() -> None:
 					button_height,
 				)
 
-			draw_canvas = canvas_state.ensure_size(w, h)
+			draw_canvas = canvas_state.ensure_size(canvas_width, canvas_height)
 			slider_layout = build_slider_layout(w, h)
-			canvas_state.clear_controls_zone(slider_layout.controls_rect)
+			canvas_controls_rect = pygame.Rect(
+				int(slider_layout.controls_rect.left * canvas_scale),
+				int(slider_layout.controls_rect.top * canvas_scale),
+				int(slider_layout.controls_rect.width * canvas_scale),
+				int(slider_layout.controls_rect.height * canvas_scale),
+			)
+			canvas_state.clear_controls_zone(canvas_controls_rect)
 
 			frame_surface = pygame.image.frombuffer(rgb_frame.tobytes(), (w, h), "RGB")
 			screen.blit(frame_surface, (0, 0))
@@ -145,7 +168,9 @@ def main() -> None:
 			brush_radius = brush_config.draw_radius
 			erase_radius = brush_config.erase_radius
 			raw_drawing_points = []
+			drawing_points_screen = []
 			drawing_points = []
+			erasing_points_screen = []
 			erasing_points = []
 			touching_detected = False
 			drawing_detected = False
@@ -166,7 +191,9 @@ def main() -> None:
 					point_x = int(index_tip.x * w)
 					point_y = int(index_tip.y * h)
 					if slider_layout.drawing_rect.collidepoint(point_x, point_y):
-						raw_drawing_points.append((point_x, point_y))
+						drawing_points_screen.append((point_x, point_y))
+						canvas_point = scale_point_to_canvas((point_x, point_y), (w, h), (canvas_width, canvas_height))
+						raw_drawing_points.append(canvas_point)
 						drawing_detected = True
 				elif detected_mode == "erasing":
 					index_tip = hand_landmarks[8]
@@ -174,7 +201,9 @@ def main() -> None:
 					point_x = int(((index_tip.x + middle_tip.x) * 0.5) * w)
 					point_y = int(((index_tip.y + middle_tip.y) * 0.5) * h)
 					if slider_layout.drawing_rect.collidepoint(point_x, point_y):
-						erasing_points.append((point_x, point_y))
+						erasing_points_screen.append((point_x, point_y))
+						canvas_point = scale_point_to_canvas((point_x, point_y), (w, h), (canvas_width, canvas_height))
+						erasing_points.append(canvas_point)
 						erasing_detected = True
 
 			# Priority: touching > erasing > drawing > idle
@@ -217,8 +246,10 @@ def main() -> None:
 				is_touching_mode=(mode == "touching"),
 			)
 
-			screen.blit(draw_canvas, (0, 0))
-			canvas_state.draw_active_shape_preview(screen)
+			composite_canvas = draw_canvas.copy()
+			canvas_state.draw_active_shape_preview(composite_canvas)
+			display_canvas = pygame.transform.smoothscale(composite_canvas, (w, h))
+			screen.blit(display_canvas, (0, 0))
 			draw_sliders(
 				screen=screen,
 				state=slider_state,
@@ -233,11 +264,11 @@ def main() -> None:
 			if mode == "touching":
 				for point_x, point_y in drag_points:
 					pygame.draw.circle(screen, (255, 220, 90), (point_x, point_y), 6)
-			if mode == "drawing" and drawing_points:
-				for point_x, point_y in drawing_points:
+			if mode == "drawing" and drawing_points_screen:
+				for point_x, point_y in drawing_points_screen:
 					pygame.draw.circle(screen, (255, 255, 255), (point_x, point_y), brush_radius + 5, 2)
-			if mode == "erasing" and erasing_points:
-				for point_x, point_y in erasing_points:
+			if mode == "erasing" and erasing_points_screen:
+				for point_x, point_y in erasing_points_screen:
 					pygame.draw.circle(screen, (255, 60, 60), (point_x, point_y), erase_radius + 5, 2)
 
 			smoothed_overlay = pygame.transform.smoothscale(overlay_hi, (w, h))
