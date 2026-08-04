@@ -23,10 +23,9 @@ def get_color_from_position(position: float) -> tuple[int, int, int]:
 
 
 def apply_saturation(color: tuple[int, int, int], saturation: float) -> tuple[int, int, int]:
-	"""Desaturates a color toward gray for a 0..1 saturation value."""
+	"""Blends a color toward white for a 0..1 saturation value."""
 	saturation = max(0.0, min(1.0, saturation))
-	gray = sum(color) // 3
-	return tuple(int(channel * saturation + gray * (1.0 - saturation)) for channel in color)
+	return tuple(int(channel * saturation + 255 * (1.0 - saturation)) for channel in color)
 
 
 def draw_round_brush(

@@ -223,6 +223,15 @@ def main() -> None:
 				drawing_points = raw_drawing_points
 				smoothed_brush_point = None
 
+			update_drag(
+				state=slider_state,
+				layout=slider_layout,
+				drag_points=drag_points,
+				is_touching_mode=(mode == "touching"),
+			)
+
+			selected_color = get_selected_color(slider_state)
+
 			canvas_state.update_active_shape(
 				active_tool=active_tool,
 				drawing_points=drawing_points,
@@ -237,13 +246,6 @@ def main() -> None:
 				draw_color=selected_color,
 				draw_radius=brush_radius,
 				erase_radius=erase_radius,
-			)
-
-			update_drag(
-				state=slider_state,
-				layout=slider_layout,
-				drag_points=drag_points,
-				is_touching_mode=(mode == "touching"),
 			)
 
 			composite_canvas = draw_canvas.copy()

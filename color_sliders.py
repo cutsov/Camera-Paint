@@ -80,6 +80,11 @@ def get_selected_color(state: SliderState) -> tuple[int, int, int]:
 	return tuple(int(channel * state.brightness_value) for channel in desaturated_color)
 
 
+def get_saturation_track_color(selected_color: tuple[int, int, int], saturation_value: float) -> tuple[int, int, int]:
+	saturation_value = max(0.0, min(1.0, saturation_value))
+	return apply_saturation(selected_color, saturation_value)
+
+
 def _get_handle_geometry(lever_rect: pygame.Rect, value: float) -> tuple[int, int, int, int]:
 	handle_width = max(34, lever_rect.width * 2)
 	handle_height = max(18, lever_rect.width + 6)
@@ -190,8 +195,8 @@ def draw_sliders(
 	track_top = layout.saturation_lever_rect.top - lever_layer_rect.top
 	for i in range(layout.saturation_lever_rect.height):
 		t = i / max(1, layout.saturation_lever_rect.height - 1)
-		gray = sum(selected_color) // 3
-		color = tuple(int(channel * t + gray * (1.0 - t)) for channel in selected_color)
+		saturation_value = 1.0 - t
+		color = get_saturation_track_color(selected_color, saturation_value)
 		pygame.draw.line(
 			lever_layer,
 			(*color, lever_alpha),
