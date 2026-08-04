@@ -12,6 +12,29 @@ from mode_selector import detect_mode
 from tool_buttons import ToolButton
 
 
+def smooth_brush_points(
+	points: list[tuple[int, int]],
+	previous_point: tuple[int, int] | None,
+	alpha: float = 0.35,
+) -> tuple[list[tuple[int, int]], tuple[int, int] | None]:
+	if not points:
+		return [], None
+
+	smoothed_points: list[tuple[int, int]] = []
+	current_point = previous_point
+	for point in points:
+		if current_point is None:
+			current_point = point
+		else:
+			current_point = (
+				int(current_point[0] + (point[0] - current_point[0]) * alpha),
+				int(current_point[1] + (point[1] - current_point[1]) * alpha),
+			)
+		smoothed_points.append(current_point)
+
+	return smoothed_points, current_point
+
+
 def ensure_model_download(model_path: Path) -> None:
 	if model_path.exists():
 		return
@@ -52,6 +75,7 @@ def main() -> None:
 	tool_button = None
 	slider_state = SliderState()
 	canvas_state = CanvasState()
+	smoothed_brush_point: tuple[int, int] | None = None
 
 	base_options = mp_tasks.BaseOptions(model_asset_path=str(model_path))
 	options = mp_tasks.vision.HandLandmarkerOptions(
@@ -120,6 +144,7 @@ def main() -> None:
 
 			brush_radius = brush_config.draw_radius
 			erase_radius = brush_config.erase_radius
+			raw_drawing_points = []
 			drawing_points = []
 			erasing_points = []
 			touching_detected = False
@@ -141,7 +166,7 @@ def main() -> None:
 					point_x = int(index_tip.x * w)
 					point_y = int(index_tip.y * h)
 					if slider_layout.drawing_rect.collidepoint(point_x, point_y):
-						drawing_points.append((point_x, point_y))
+						raw_drawing_points.append((point_x, point_y))
 						drawing_detected = True
 				elif detected_mode == "erasing":
 					index_tip = hand_landmarks[8]
@@ -159,6 +184,15 @@ def main() -> None:
 				mode = "erasing"
 			elif drawing_detected:
 				mode = "drawing"
+
+			if active_tool == "brush" and mode == "drawing" and raw_drawing_points:
+				drawing_points, smoothed_brush_point = smooth_brush_points(
+					raw_drawing_points,
+					smoothed_brush_point,
+				)
+			else:
+				drawing_points = raw_drawing_points
+				smoothed_brush_point = None
 
 			canvas_state.update_active_shape(
 				active_tool=active_tool,
