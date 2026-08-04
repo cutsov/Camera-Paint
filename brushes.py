@@ -29,7 +29,13 @@ def apply_saturation(color: tuple[int, int, int], saturation: float) -> tuple[in
 	return tuple(int(channel * saturation + gray * (1.0 - saturation)) for channel in color)
 
 
-def draw_round_brush(surface: pygame.Surface, color: tuple[int, int, int], start: tuple[int, int], end: tuple[int, int], radius: int) -> None:
+def draw_round_brush(
+	surface: pygame.Surface,
+	color: tuple[int, int, int] | tuple[int, int, int, int],
+	start: tuple[int, int],
+	end: tuple[int, int],
+	radius: int,
+) -> None:
 	"""Draws a smooth round brush stroke with a fixed radius."""
 	if start == end:
 		pygame.draw.circle(surface, color, start, radius)

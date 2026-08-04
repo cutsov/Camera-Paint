@@ -56,6 +56,7 @@ class CanvasState:
 	erase_tracks: dict[int, tuple[int, int]] = field(default_factory=dict)
 	next_draw_track_id: int = 0
 	next_erase_track_id: int = 0
+	draw_alpha: int = 165
 	active_shape_tool: str | None = None
 	active_shape_start: tuple[int, int] | None = None
 	active_shape_end: tuple[int, int] | None = None
@@ -98,11 +99,15 @@ class CanvasState:
 		self.active_shape_start = None
 		self.active_shape_end = None
 
+	def _with_draw_alpha(self, color: tuple[int, int, int]) -> tuple[int, int, int, int]:
+		alpha = max(0, min(255, self.draw_alpha))
+		return (color[0], color[1], color[2], alpha)
+
 	def commit_active_shape(self) -> None:
 		if self.surface is None or self.active_shape_tool is None:
 			return
 
-		self._draw_shape(self.surface, self.active_shape_tool, self.active_shape_color)
+		self._draw_shape(self.surface, self.active_shape_tool, self._with_draw_alpha(self.active_shape_color))
 		self._clear_active_shape()
 
 	def update_active_shape(
@@ -162,7 +167,7 @@ class CanvasState:
 			points=drawing_points,
 			tracks=self.draw_tracks,
 			next_track_id=self.next_draw_track_id,
-			color=draw_color,
+			color=self._with_draw_alpha(draw_color),
 			radius=draw_radius,
 			max_link_distance=max(36.0, draw_radius * 8.0),
 		)
