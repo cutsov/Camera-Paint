@@ -172,16 +172,7 @@ def draw_sliders(
 	track_top = layout.color_lever_rect.top - lever_layer_rect.top
 	for i in range(layout.color_lever_rect.height):
 		t = i / max(1, layout.color_lever_rect.height - 1)
-		segment = t * 4
-		if segment < 1:
-			r, g, b = 255, int(255 * segment), 60
-		elif segment < 2:
-			r, g, b = int(255 * (2 - segment)), 255, 60
-		elif segment < 3:
-			r, g, b = 60, 255, int(255 * (segment - 2))
-		else:
-			r, g, b = 60, int(255 * (4 - segment)), 255
-		base_track_color = apply_saturation((r, g, b), state.saturation_value)
+		base_track_color = apply_saturation(get_color_from_position(t), state.saturation_value)
 		color = tuple(int(channel * state.brightness_value) for channel in base_track_color)
 		pygame.draw.line(
 			lever_layer,
